@@ -1,6 +1,7 @@
 // Background Service Worker - Central Storage Manager
 
 const STORAGE_KEY = 'tweets';
+const GITHUB_SETTINGS_KEY = 'githubSettings';
 
 // ============================================================
 // Storage Helpers - Centralized data access layer
@@ -72,7 +73,10 @@ async function handleMessage(request) {
     updateTweet: () => updateTweet(request.tweetId, request.updates),
     checkTweetExists: () => checkTweetExists(request.tweetId),
     importTweets: () => importTweets(request.tweets),
-    getUnreadCount: () => getUnreadCount()
+    getUnreadCount: () => getUnreadCount(),
+    saveGitHubSettings: () => saveGitHubSettings(request.settings),
+    getGitHubSettings: () => getGitHubSettings(),
+    syncToGitHub: () => syncToGitHub()
   };
 
   const handler = handlers[request.action];
@@ -163,4 +167,83 @@ async function getUnreadCount() {
   const tweets = await getTweets();
   const count = tweets.filter(t => t.status === 'unread').length;
   return { success: true, count };
+}
+
+// ============================================================
+// GitHub Sync Operations
+// ============================================================
+
+async function saveGitHubSettings(settings) {
+  await chrome.storage.local.set({ [GITHUB_SETTINGS_KEY]: settings });
+  return { success: true };
+}
+
+async function getGitHubSettings() {
+  const data = await chrome.storage.local.get(GITHUB_SETTINGS_KEY);
+  return { success: true, settings: data[GITHUB_SETTINGS_KEY] || null };
+}
+
+async function syncToGitHub() {
+  const data = await chrome.storage.local.get(GITHUB_SETTINGS_KEY);
+  const settings = data[GITHUB_SETTINGS_KEY];
+
+  if (!settings || !settings.token || !settings.owner || !settings.repo) {
+    return { success: false, error: 'GitHub settings not configured. Click the gear icon to set up.' };
+  }
+
+  const { token, owner, repo, path } = settings;
+  const filePath = path || 'mobile/tweets.json';
+
+  const tweets = await getTweets();
+  const content = JSON.stringify(tweets, null, 2);
+  const base64Content = btoa(unescape(encodeURIComponent(content)));
+
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json'
+  };
+
+  // Get current file SHA (needed for updates)
+  let sha = null;
+  try {
+    const getResponse = await fetch(apiUrl, { headers });
+    if (getResponse.ok) {
+      const fileData = await getResponse.json();
+      sha = fileData.sha;
+    } else if (getResponse.status !== 404) {
+      const errorData = await getResponse.json().catch(() => ({}));
+      return { success: false, error: `GitHub API error: ${getResponse.status} - ${errorData.message || 'Unknown error'}` };
+    }
+  } catch (err) {
+    return { success: false, error: `Network error: ${err.message}` };
+  }
+
+  // PUT the file content
+  const putBody = {
+    message: `Update tweets.json - ${new Date().toISOString()}`,
+    content: base64Content
+  };
+  if (sha) {
+    putBody.sha = sha;
+  }
+
+  try {
+    const putResponse = await fetch(apiUrl, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(putBody)
+    });
+
+    if (putResponse.ok) {
+      const timestamp = new Date().toISOString();
+      return { success: true, timestamp, tweetCount: tweets.length };
+    }
+
+    const errorData = await putResponse.json().catch(() => ({}));
+    return { success: false, error: `GitHub API error: ${putResponse.status} - ${errorData.message || 'Unknown error'}` };
+  } catch (err) {
+    return { success: false, error: `Network error: ${err.message}` };
+  }
 }

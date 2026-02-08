@@ -14,7 +14,8 @@ const sortFilter = document.getElementById('sort-filter');
 const showingCount = document.getElementById('showing-count');
 const totalStats = document.getElementById('total-stats');
 const exportBtn = document.getElementById('export-btn');
-const exportMobileBtn = document.getElementById('export-mobile-btn');
+const syncGitHubBtn = document.getElementById('sync-github-btn');
+const gitHubSettingsBtn = document.getElementById('github-settings-btn');
 const importBtn = document.getElementById('import-btn');
 const importFile = document.getElementById('import-file');
 
@@ -39,6 +40,23 @@ const deleteModal = document.getElementById('delete-modal');
 const deleteModalClose = document.getElementById('delete-modal-close');
 const deleteCancel = document.getElementById('delete-cancel');
 const deleteConfirm = document.getElementById('delete-confirm');
+
+// GitHub Settings Modal
+const gitHubSettingsModal = document.getElementById('github-settings-modal');
+const gitHubSettingsClose = document.getElementById('github-settings-close');
+const gitHubSettingsCancel = document.getElementById('github-settings-cancel');
+const gitHubSettingsSave = document.getElementById('github-settings-save');
+const gitHubToken = document.getElementById('github-token');
+const gitHubOwner = document.getElementById('github-owner');
+const gitHubRepo = document.getElementById('github-repo');
+const gitHubPath = document.getElementById('github-path');
+
+// Sync Result Modal
+const syncResultModal = document.getElementById('sync-result-modal');
+const syncResultTitle = document.getElementById('sync-result-title');
+const syncResultBody = document.getElementById('sync-result-body');
+const syncResultClose = document.getElementById('sync-result-close');
+const syncResultOk = document.getElementById('sync-result-ok');
 
 // ============================================================
 // Initialization
@@ -89,7 +107,10 @@ function setupEventListeners() {
 
   // Export
   exportBtn.addEventListener('click', exportLibrary);
-  exportMobileBtn.addEventListener('click', exportForMobile);
+
+  // GitHub Sync
+  syncGitHubBtn.addEventListener('click', handleSyncToGitHub);
+  gitHubSettingsBtn.addEventListener('click', openGitHubSettingsModal);
 
   // Import
   importBtn.addEventListener('click', () => importFile.click());
@@ -118,12 +139,29 @@ function setupEventListeners() {
     if (e.target === deleteModal) closeDeleteModal();
   });
 
+  // GitHub Settings Modal
+  gitHubSettingsClose.addEventListener('click', closeGitHubSettingsModal);
+  gitHubSettingsCancel.addEventListener('click', closeGitHubSettingsModal);
+  gitHubSettingsSave.addEventListener('click', saveGitHubSettings);
+  gitHubSettingsModal.addEventListener('click', (e) => {
+    if (e.target === gitHubSettingsModal) closeGitHubSettingsModal();
+  });
+
+  // Sync Result Modal
+  syncResultClose.addEventListener('click', closeSyncResultModal);
+  syncResultOk.addEventListener('click', closeSyncResultModal);
+  syncResultModal.addEventListener('click', (e) => {
+    if (e.target === syncResultModal) closeSyncResultModal();
+  });
+
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeEditModal();
       closeImportModal();
       closeDeleteModal();
+      closeGitHubSettingsModal();
+      closeSyncResultModal();
     }
   });
 }
@@ -307,11 +345,6 @@ function exportLibrary() {
   downloadJson(exportData, 'tweets-backup.json');
 }
 
-function exportForMobile() {
-  const tweets = TweetLibrary.getTweets();
-  downloadJson(tweets, 'tweets.json');
-}
-
 function downloadJson(data, filename) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -381,4 +414,118 @@ async function handleImport(event) {
 
 function closeImportModal() {
   importModal.style.display = 'none';
+}
+
+// ============================================================
+// GitHub Sync Functions
+// ============================================================
+
+async function openGitHubSettingsModal() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'getGitHubSettings' });
+    if (response.success && response.settings) {
+      gitHubToken.value = response.settings.token || '';
+      gitHubOwner.value = response.settings.owner || '';
+      gitHubRepo.value = response.settings.repo || '';
+      gitHubPath.value = response.settings.path || 'mobile/tweets.json';
+    }
+  } catch (error) {
+    console.error('Failed to load GitHub settings:', error);
+  }
+  gitHubSettingsModal.style.display = 'flex';
+}
+
+function closeGitHubSettingsModal() {
+  gitHubSettingsModal.style.display = 'none';
+}
+
+async function saveGitHubSettings() {
+  const settings = {
+    token: gitHubToken.value.trim(),
+    owner: gitHubOwner.value.trim(),
+    repo: gitHubRepo.value.trim(),
+    path: gitHubPath.value.trim() || 'mobile/tweets.json'
+  };
+
+  if (!settings.token || !settings.owner || !settings.repo) {
+    alert('Token, Owner, and Repository are required.');
+    return;
+  }
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'saveGitHubSettings',
+      settings
+    });
+
+    if (response.success) {
+      closeGitHubSettingsModal();
+    }
+  } catch (error) {
+    console.error('Failed to save GitHub settings:', error);
+    alert('Failed to save settings.');
+  }
+}
+
+async function handleSyncToGitHub() {
+  // Show loading state
+  syncGitHubBtn.disabled = true;
+  syncGitHubBtn.classList.add('syncing');
+  const originalHTML = syncGitHubBtn.innerHTML;
+  syncGitHubBtn.innerHTML = `
+    <svg class="spin" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+      <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+    </svg>
+    Syncing...
+  `;
+
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'syncToGitHub' });
+
+    if (response.success) {
+      const time = new Date(response.timestamp).toLocaleString();
+      syncResultTitle.textContent = 'Sync Successful';
+      syncResultBody.innerHTML = `
+        <div class="sync-success">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="var(--success-color)">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          <p>${response.tweetCount} tweets synced</p>
+          <span class="sync-time">${time}</span>
+        </div>
+      `;
+    } else {
+      syncResultTitle.textContent = 'Sync Failed';
+      syncResultBody.innerHTML = `
+        <div class="sync-error">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="var(--danger-color)">
+            <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/>
+          </svg>
+          <p>${response.error}</p>
+        </div>
+      `;
+    }
+
+    syncResultModal.style.display = 'flex';
+  } catch (error) {
+    console.error('Sync failed:', error);
+    syncResultTitle.textContent = 'Sync Failed';
+    syncResultBody.innerHTML = `
+      <div class="sync-error">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="var(--danger-color)">
+          <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/>
+        </svg>
+        <p>Failed to sync: ${error.message}</p>
+      </div>
+    `;
+    syncResultModal.style.display = 'flex';
+  } finally {
+    syncGitHubBtn.disabled = false;
+    syncGitHubBtn.classList.remove('syncing');
+    syncGitHubBtn.innerHTML = originalHTML;
+  }
+}
+
+function closeSyncResultModal() {
+  syncResultModal.style.display = 'none';
 }

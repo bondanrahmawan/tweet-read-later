@@ -22,11 +22,16 @@
           </svg>
           Export
         </button>
-        <button id="export-mobile-btn" class="header-btn" title="Export for Mobile View">
+        <button id="sync-github-btn" class="header-btn" title="Sync tweets to GitHub">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-            <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
           </svg>
-          Mobile
+          Sync to GitHub
+        </button>
+        <button id="github-settings-btn" class="header-btn header-btn-icon" title="GitHub sync settings">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/>
+          </svg>
         </button>
         <button id="import-btn" class="header-btn" title="Import Library">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
@@ -151,6 +156,56 @@
       <div class="modal-footer">
         <button id="delete-cancel" class="btn-secondary">Cancel</button>
         <button id="delete-confirm" class="btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GitHub Settings Modal -->
+  <div id="github-settings-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h2>GitHub Sync Settings</h2>
+        <button class="modal-close" id="github-settings-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="github-token">Personal Access Token</label>
+          <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxx">
+          <span class="form-hint">Fine-grained PAT with "Contents: Read and write"</span>
+        </div>
+        <div class="form-group">
+          <label for="github-owner">Repository Owner</label>
+          <input type="text" id="github-owner" placeholder="username">
+        </div>
+        <div class="form-group">
+          <label for="github-repo">Repository Name</label>
+          <input type="text" id="github-repo" placeholder="my-repo">
+        </div>
+        <div class="form-group">
+          <label for="github-path">File Path</label>
+          <input type="text" id="github-path" placeholder="mobile/tweets.json" value="mobile/tweets.json">
+          <span class="form-hint">Path to tweets.json in the repository</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="github-settings-cancel" class="btn-secondary">Cancel</button>
+        <button id="github-settings-save" class="btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Result Modal -->
+  <div id="sync-result-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h2 id="sync-result-title">Sync Result</h2>
+        <button class="modal-close" id="sync-result-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="sync-result-body" class="sync-result-body"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="sync-result-ok" class="btn-primary">OK</button>
       </div>
     </div>
   </div>

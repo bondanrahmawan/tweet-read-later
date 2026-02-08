@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(if not exist \"D:\\\\pet_project\\\\tweet-read-later\\\\icons\" mkdir \"D:\\\\pet_project\\\\tweet-read-later\\\\icons\")"
+      "Bash(if not exist \"D:\\\\pet_project\\\\tweet-read-later\\\\icons\" mkdir \"D:\\\\pet_project\\\\tweet-read-later\\\\icons\")",
+      "Bash(git push:*)"
     ]
   }
 }
