@@ -33,6 +33,7 @@ const sortFilter = document.getElementById('sort-filter');
 const showingCount = document.getElementById('showing-count');
 const totalStats = document.getElementById('total-stats');
 const exportBtn = document.getElementById('export-btn');
+const exportMobileBtn = document.getElementById('export-mobile-btn');
 const importBtn = document.getElementById('import-btn');
 const importFile = document.getElementById('import-file');
 
@@ -90,6 +91,7 @@ function setupEventListeners() {
 
   // Export
   exportBtn.addEventListener('click', exportLibrary);
+  exportMobileBtn.addEventListener('click', exportForMobile);
 
   // Import
   importBtn.addEventListener('click', () => importFile.click());
@@ -570,7 +572,7 @@ async function confirmDelete() {
   }
 }
 
-// Export Library
+// Export Library (full backup with metadata)
 function exportLibrary() {
   const exportData = {
     version: 1,
@@ -584,6 +586,21 @@ function exportLibrary() {
   const a = document.createElement('a');
   a.href = url;
   a.download = 'tweets-backup.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Export for Mobile View (raw array for GitHub Pages)
+function exportForMobile() {
+  // Export only the raw tweets array for mobile.html consumption
+  const blob = new Blob([JSON.stringify(allTweets, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'tweets.json';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

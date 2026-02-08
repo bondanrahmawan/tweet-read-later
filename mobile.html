@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Tweet Library - Mobile View</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Mobile-specific styles */
+    .library-container {
+      padding: 12px;
+      max-width: 100%;
+    }
+
+    .library-header {
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .header-left h1 {
+      font-size: 18px;
+    }
+
+    .last-updated {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-align: center;
+      padding: 8px;
+    }
+
+    .filter-controls {
+      flex-direction: column;
+    }
+
+    .filter-select {
+      width: 100%;
+    }
+
+    .tweet-card {
+      padding: 12px;
+    }
+
+    .tweet-actions {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .tweet-text {
+      font-size: 14px;
+    }
+
+    .privacy-notice {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #856404;
+    }
+
+    .privacy-notice strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      background: var(--bg-primary);
+      border-radius: 16px;
+      text-align: center;
+    }
+
+    .error-state svg {
+      color: var(--danger-color);
+      opacity: 0.5;
+      margin-bottom: 16px;
+    }
+
+    .error-state p {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .error-state span {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 480px) {
+      .library-stats {
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+      }
+
+      .action-btn {
+        font-size: 12px;
+        padding: 4px 8px;
+      }
+    }
+  </style>
+</head>
+<body class="library-body">
+  <div class="library-container">
+    <header class="library-header">
+      <div class="header-left">
+        <svg class="header-icon" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+          <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
+        </svg>
+        <h1>Tweet Library</h1>
+      </div>
+      <div class="last-updated" id="last-updated"></div>
+    </header>
+
+    <div class="privacy-notice" id="privacy-notice" style="display: none;">
+      <strong>Privacy Reminder</strong>
+      This page displays your saved tweets. Ensure this repository is private to protect your data.
+    </div>
+
+    <div class="library-controls">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        </svg>
+        <input type="text" id="search-input" placeholder="Search tweets or @author...">
+      </div>
+
+      <div class="filter-controls">
+        <select id="status-filter" class="filter-select">
+          <option value="all">All Tweets</option>
+          <option value="unread">Unread</option>
+          <option value="archived">Archived</option>
+        </select>
+
+        <select id="tag-filter" class="filter-select">
+          <option value="all">All Tags</option>
+        </select>
+
+        <select id="sort-filter" class="filter-select">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="library-stats">
+      <span id="showing-count">Showing 0 tweets</span>
+      <span id="total-stats"></span>
+    </div>
+
+    <div id="tweets-container" class="tweets-container">
+      <div class="loading">Loading tweets...</div>
+    </div>
+
+    <div id="empty-state" class="empty-state" style="display: none;">
+      <svg viewBox="0 0 24 24" width="64" height="64" fill="currentColor" opacity="0.3">
+        <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2zm0 15l-5-2.18L7 18V5h10v13z"/>
+      </svg>
+      <p>No tweets found</p>
+      <span>Upload your tweets.json file to view your library</span>
+    </div>
+
+    <div id="error-state" class="error-state" style="display: none;">
+      <svg viewBox="0 0 24 24" width="64" height="64" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+      </svg>
+      <p>Could not load tweets</p>
+      <span id="error-message">Make sure tweets.json exists in this directory</span>
+    </div>
+  </div>
+
+  <script src="mobile.js"></script>
+</body>
+</html>
