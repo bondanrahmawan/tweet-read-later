@@ -36,7 +36,7 @@ This feature creates a simple, read-only web page that displays your saved tweet
 
 **How it works:**
 1. You export your tweets as a `tweets.json` file from the extension
-2. You upload this file along with the web page files to GitHub
+2. You upload the mobile folder files along with tweets.json to GitHub
 3. GitHub Pages hosts the page for you
 4. You visit the page URL on your mobile device
 
@@ -81,35 +81,36 @@ This feature creates a simple, read-only web page that displays your saved tweet
 
 ### Step 4: Upload Files to GitHub
 
-You need to upload 4 files to your repository:
+Upload the contents of the `mobile/` folder plus your exported tweets:
 
 | File | What it is |
 |------|------------|
-| `mobile.html` | The web page |
+| `index.html` | The web page |
 | `mobile.js` | The page functionality |
+| `shared.js` | Shared utilities |
 | `style.css` | The visual styling |
 | `tweets.json` | Your exported tweets |
 
 **To upload:**
 
 1. In your GitHub repository, click **Add file** > **Upload files**
-2. Drag and drop these files (or click "choose your files"):
-   - `mobile.html` (from the extension folder)
-   - `mobile.js` (from the extension folder)
-   - `style.css` (from the extension folder)
-   - `tweets.json` (the file you just exported)
-3. Scroll down and click **Commit changes**
+2. Drag and drop these files from the `mobile/` folder:
+   - `index.html`
+   - `mobile.js`
+   - `shared.js`
+   - `style.css`
+3. Also upload your exported `tweets.json` file
+4. Scroll down and click **Commit changes**
 
-**Finding the extension files:**
-- Windows: `C:\Users\[YourName]\AppData\Local\Google\Chrome\User Data\Default\Extensions\[extension-id]\`
-- Mac: `~/Library/Application Support/Google/Chrome/Default/Extensions/[extension-id]/`
-- Or download them from where you originally installed the extension
+**Finding the mobile folder:**
+- Look in the extension's installation directory under `mobile/`
+- Or copy the files from where you cloned/downloaded the extension
 
 ### Step 5: Access Your Mobile Library
 
 1. Go to your repository's **Settings** > **Pages**
 2. You'll see a message like: "Your site is live at https://yourusername.github.io/my-tweet-library/"
-3. Your mobile library URL is: `https://yourusername.github.io/my-tweet-library/mobile.html`
+3. Your mobile library URL is: `https://yourusername.github.io/my-tweet-library/` (index.html loads by default)
 4. Open this URL on your phone and bookmark it!
 
 ---
@@ -135,7 +136,7 @@ When you save new tweets and want to see them on mobile:
 ## Troubleshooting
 
 ### "Could not load tweets" error
-- Make sure `tweets.json` is in the same folder as `mobile.html`
+- Make sure `tweets.json` is in the same folder as `index.html`
 - Check that `tweets.json` is valid JSON (no syntax errors)
 - Wait a few minutes if you just uploaded - GitHub Pages needs time to deploy
 
@@ -146,7 +147,8 @@ When you save new tweets and want to see them on mobile:
 
 ### Page looks broken / unstyled
 - Make sure `style.css` is uploaded
-- Check that the filename is exactly `style.css` (lowercase)
+- Make sure `shared.js` is uploaded
+- Check that all filenames are exactly as listed (lowercase)
 
 ### Can't enable GitHub Pages on private repo
 - GitHub Pages for private repos requires a paid GitHub plan
@@ -173,8 +175,9 @@ When you save new tweets and want to see them on mobile:
 
 | File | Purpose | Update Frequency |
 |------|---------|------------------|
-| `mobile.html` | Main page structure | Only when extension updates |
+| `index.html` | Main page structure | Only when extension updates |
 | `mobile.js` | Page functionality | Only when extension updates |
+| `shared.js` | Shared utilities | Only when extension updates |
 | `style.css` | Visual styling | Only when extension updates |
 | `tweets.json` | Your tweet data | Whenever you want to sync |
 

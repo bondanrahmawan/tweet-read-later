@@ -11,7 +11,7 @@
     "https://twitter.com/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background.js"
   },
   "content_scripts": [
     {
@@ -19,13 +19,13 @@
         "https://x.com/*",
         "https://twitter.com/*"
       ],
-      "js": ["content.js"],
-      "css": ["content-style.css"],
+      "js": ["src/content/content.js"],
+      "css": ["src/content/content.css"],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

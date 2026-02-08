@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Open library button
   document.getElementById('open-library').addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('library.html') });
+    chrome.tabs.create({ url: chrome.runtime.getURL('src/library/library.html') });
     window.close();
   });
 });
