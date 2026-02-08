@@ -250,6 +250,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
+  min-height: 200px;
+}
+
+/* Virtual scrolling support */
+.tweets-container[style*="height"] {
+  display: block;
+}
+
+.tweets-container[style*="height"] .tweet-card {
+  width: calc(100% - 24px);
+  margin: 0 12px;
 }
 
 .tweet-card {
@@ -257,7 +269,7 @@ body {
   background: var(--bg-primary);
   border-radius: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, opacity 0.2s;
 }
 
 .tweet-card:hover {

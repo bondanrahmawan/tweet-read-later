@@ -6,20 +6,91 @@
   const BUTTON_CLASS = 'trl-save-button';
   const PROCESSED_ATTR = 'data-trl-processed';
 
-  // Track processed tweets to avoid duplicate buttons
-  const processedTweets = new Set();
+  // ============================================================
+  // Selector Configuration - Centralized for easy updates
+  // Multiple fallback selectors for resilience against UI changes
+  // ============================================================
+  const SELECTORS = {
+    // Tweet container selectors (ordered by reliability)
+    tweet: [
+      'article[data-testid="tweet"]',
+      'article[role="article"]',
+      '[data-testid="cellInnerDiv"] article',
+      'div[data-testid="tweetDetail"]'
+    ],
+    // Action bar selectors
+    actionBar: [
+      '[role="group"][id]',
+      '[role="group"]:has(> div > button)',
+      'article [role="group"]'
+    ],
+    // Tweet text selectors
+    tweetText: [
+      '[data-testid="tweetText"]',
+      '[lang][dir="auto"]',
+      'article div[lang]'
+    ],
+    // User name container selectors
+    userName: [
+      '[data-testid="User-Name"]',
+      'a[role="link"][href^="/"]:has(span)'
+    ],
+    // Time/permalink selectors
+    timeLink: [
+      'a[href*="/status/"] time',
+      'time[datetime]'
+    ]
+  };
 
-  // Initialize
+  // ============================================================
+  // Selector Utilities
+  // ============================================================
+
+  function queryWithFallbacks(element, selectors) {
+    for (const selector of selectors) {
+      try {
+        const result = element.querySelector(selector);
+        if (result) return result;
+      } catch (e) {
+        // Selector might be invalid in older browsers, continue
+      }
+    }
+    return null;
+  }
+
+  function queryAllWithFallbacks(root, selectors) {
+    for (const selector of selectors) {
+      try {
+        const results = root.querySelectorAll(selector);
+        if (results.length > 0) return results;
+      } catch (e) {
+        // Continue to next selector
+      }
+    }
+    return [];
+  }
+
+  // ============================================================
+  // Core Functions
+  // ============================================================
+
   function init() {
-    // Process existing tweets
     processTweets();
 
-    // Watch for new tweets (infinite scroll, navigation)
     const observer = new MutationObserver(debounce(processTweets, 100));
     observer.observe(document.body, {
       childList: true,
       subtree: true
     });
+
+    // Re-process on navigation (SPA route changes)
+    let lastUrl = location.href;
+    new MutationObserver(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        setTimeout(processTweets, 500);
+      }
+    }).observe(document.body, { childList: true, subtree: true });
   }
 
   function debounce(fn, delay) {
@@ -31,8 +102,7 @@
   }
 
   function processTweets() {
-    // Find all tweet articles
-    const tweets = document.querySelectorAll('article[data-testid="tweet"]');
+    const tweets = queryAllWithFallbacks(document, SELECTORS.tweet);
 
     tweets.forEach(tweet => {
       if (tweet.hasAttribute(PROCESSED_ATTR)) return;
@@ -40,74 +110,89 @@
       const tweetId = extractTweetId(tweet);
       if (!tweetId) return;
 
-      // Mark as processed
       tweet.setAttribute(PROCESSED_ATTR, 'true');
 
-      // Find the action bar (like, retweet, reply buttons)
-      const actionBar = tweet.querySelector('[role="group"]');
+      const actionBar = queryWithFallbacks(tweet, SELECTORS.actionBar);
       if (!actionBar) return;
 
-      // Check if button already exists
       if (actionBar.querySelector(`.${BUTTON_CLASS}`)) return;
 
-      // Create and inject button
       injectButton(tweet, actionBar, tweetId);
     });
   }
 
   function extractTweetId(tweetElement) {
-    // Try to find tweet ID from links within the tweet
-    const timeLink = tweetElement.querySelector('a[href*="/status/"] time');
-    if (timeLink) {
-      const link = timeLink.closest('a');
+    // Strategy 1: Find time link with status URL
+    const timeEl = queryWithFallbacks(tweetElement, SELECTORS.timeLink);
+    if (timeEl) {
+      const link = timeEl.closest('a');
       if (link) {
         const match = link.href.match(/\/status\/(\d+)/);
         if (match) return match[1];
       }
     }
 
-    // Fallback: look for any status link
+    // Strategy 2: Any status link in the tweet
     const statusLinks = tweetElement.querySelectorAll('a[href*="/status/"]');
     for (const link of statusLinks) {
       const match = link.href.match(/\/status\/(\d+)/);
       if (match) return match[1];
     }
 
-    // Last resort: check current URL if on single tweet page
+    // Strategy 3: Current URL for single tweet pages
     const urlMatch = window.location.href.match(/\/status\/(\d+)/);
     if (urlMatch) return urlMatch[1];
+
+    // Strategy 4: Look for data attributes that might contain tweet ID
+    const dataId = tweetElement.closest('[data-tweet-id]')?.getAttribute('data-tweet-id');
+    if (dataId) return dataId;
 
     return null;
   }
 
   function extractAuthor(tweetElement) {
-    // Look for the author handle
+    // Strategy 1: Look for user profile links
     const userLinks = tweetElement.querySelectorAll('a[href^="/"]');
     for (const link of userLinks) {
       const href = link.getAttribute('href');
-      if (href && href.match(/^\/[a-zA-Z0-9_]+$/) && !href.includes('/status/')) {
+      if (href && /^\/[a-zA-Z0-9_]{1,15}$/.test(href)) {
         return href.substring(1);
       }
     }
 
-    // Try data-testid approach
-    const userNameEl = tweetElement.querySelector('[data-testid="User-Name"]');
+    // Strategy 2: User-Name testid
+    const userNameEl = queryWithFallbacks(tweetElement, SELECTORS.userName);
     if (userNameEl) {
       const handleEl = userNameEl.querySelector('a[href^="/"]');
       if (handleEl) {
         const href = handleEl.getAttribute('href');
-        if (href) return href.substring(1).split('/')[0];
+        if (href) {
+          const match = href.match(/^\/([a-zA-Z0-9_]+)/);
+          if (match) return match[1];
+        }
       }
     }
+
+    // Strategy 3: Look for @ mentions in text that match profile pattern
+    const text = tweetElement.textContent;
+    const atMatch = text.match(/@([a-zA-Z0-9_]{1,15})/);
+    if (atMatch) return atMatch[1];
 
     return 'unknown';
   }
 
   function extractTweetText(tweetElement) {
-    const textEl = tweetElement.querySelector('[data-testid="tweetText"]');
+    const textEl = queryWithFallbacks(tweetElement, SELECTORS.tweetText);
     if (textEl) {
       return textEl.innerText.trim();
     }
+
+    // Fallback: Look for the main text content
+    const langDiv = tweetElement.querySelector('div[lang]');
+    if (langDiv) {
+      return langDiv.innerText.trim();
+    }
+
     return '';
   }
 

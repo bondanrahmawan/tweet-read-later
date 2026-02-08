@@ -5,6 +5,24 @@ let filteredTweets = [];
 let currentEditTweetId = null;
 let currentDeleteTweetId = null;
 
+// ============================================================
+// Virtual Scrolling Configuration
+// ============================================================
+const VIRTUAL_SCROLL = {
+  itemHeight: 180, // Estimated height of each tweet card
+  bufferSize: 5,   // Extra items to render above/below viewport
+  enabled: true    // Can be disabled for debugging
+};
+
+let virtualScrollState = {
+  startIndex: 0,
+  endIndex: 0,
+  scrollTop: 0
+};
+
+// DOM element cache for efficient updates
+const elementCache = new Map();
+
 // DOM Elements
 const tweetsContainer = document.getElementById('tweets-container');
 const emptyState = document.getElementById('empty-state');
@@ -124,21 +142,15 @@ function filterAndRender() {
   const tag = tagFilter.value;
   const sort = sortFilter.value;
 
-  // Filter
+  // Filter with optimized search
   filteredTweets = allTweets.filter(tweet => {
-    // Status filter
     if (status !== 'all' && tweet.status !== status) return false;
-
-    // Tag filter
     if (tag !== 'all' && !tweet.tags.includes(tag)) return false;
 
-    // Search filter
     if (searchTerm) {
-      const matchesText = tweet.text.toLowerCase().includes(searchTerm);
-      const matchesAuthor = tweet.author.toLowerCase().includes(searchTerm);
-      const matchesNote = (tweet.note || '').toLowerCase().includes(searchTerm);
-      const matchesTags = tweet.tags.some(t => t.toLowerCase().includes(searchTerm));
-      if (!matchesText && !matchesAuthor && !matchesNote && !matchesTags) return false;
+      // Combine searchable text once for efficiency
+      const searchableText = `${tweet.text} ${tweet.author} ${tweet.note || ''} ${tweet.tags.join(' ')}`.toLowerCase();
+      if (!searchableText.includes(searchTerm)) return false;
     }
 
     return true;
@@ -150,6 +162,9 @@ function filterAndRender() {
     const dateB = new Date(b.savedAt);
     return sort === 'newest' ? dateB - dateA : dateA - dateB;
   });
+
+  // Clear element cache when filter changes
+  elementCache.clear();
 
   renderTweets();
   updateShowingCount();
@@ -170,7 +185,15 @@ function renderTweets() {
     return;
   }
 
-  // Use DocumentFragment for performance
+  // Use virtual scrolling for large lists
+  if (VIRTUAL_SCROLL.enabled && filteredTweets.length > 50) {
+    renderVirtualList();
+  } else {
+    renderFullList();
+  }
+}
+
+function renderFullList() {
   const fragment = document.createDocumentFragment();
 
   filteredTweets.forEach(tweet => {
@@ -180,6 +203,90 @@ function renderTweets() {
 
   tweetsContainer.innerHTML = '';
   tweetsContainer.appendChild(fragment);
+}
+
+function renderVirtualList() {
+  const containerHeight = window.innerHeight - tweetsContainer.offsetTop - 50;
+  const totalHeight = filteredTweets.length * VIRTUAL_SCROLL.itemHeight;
+
+  // Setup virtual scroll container
+  tweetsContainer.innerHTML = '';
+  tweetsContainer.style.position = 'relative';
+  tweetsContainer.style.height = `${totalHeight}px`;
+  tweetsContainer.style.overflow = 'visible';
+
+  // Create scroll wrapper if not exists
+  let scrollWrapper = document.getElementById('virtual-scroll-wrapper');
+  if (!scrollWrapper) {
+    scrollWrapper = document.createElement('div');
+    scrollWrapper.id = 'virtual-scroll-wrapper';
+    scrollWrapper.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: auto; z-index: -1; pointer-events: none;';
+    document.body.appendChild(scrollWrapper);
+  }
+
+  // Initial render
+  updateVirtualView();
+
+  // Attach scroll listener
+  if (!tweetsContainer.dataset.scrollListenerAttached) {
+    window.addEventListener('scroll', throttle(updateVirtualView, 16), { passive: true });
+    tweetsContainer.dataset.scrollListenerAttached = 'true';
+  }
+}
+
+function updateVirtualView() {
+  if (!VIRTUAL_SCROLL.enabled || filteredTweets.length <= 50) return;
+
+  const scrollTop = window.scrollY;
+  const containerTop = tweetsContainer.offsetTop;
+  const viewportHeight = window.innerHeight;
+
+  const relativeScroll = Math.max(0, scrollTop - containerTop);
+  const startIndex = Math.max(0, Math.floor(relativeScroll / VIRTUAL_SCROLL.itemHeight) - VIRTUAL_SCROLL.bufferSize);
+  const visibleCount = Math.ceil(viewportHeight / VIRTUAL_SCROLL.itemHeight) + (VIRTUAL_SCROLL.bufferSize * 2);
+  const endIndex = Math.min(filteredTweets.length, startIndex + visibleCount);
+
+  // Skip if range hasn't changed
+  if (startIndex === virtualScrollState.startIndex && endIndex === virtualScrollState.endIndex) {
+    return;
+  }
+
+  virtualScrollState.startIndex = startIndex;
+  virtualScrollState.endIndex = endIndex;
+
+  // Clear and re-render visible items
+  const fragment = document.createDocumentFragment();
+
+  for (let i = startIndex; i < endIndex; i++) {
+    const tweet = filteredTweets[i];
+    let card = elementCache.get(tweet.tweetId);
+
+    if (!card) {
+      card = createTweetCard(tweet);
+      elementCache.set(tweet.tweetId, card);
+    }
+
+    card.style.position = 'absolute';
+    card.style.top = `${i * VIRTUAL_SCROLL.itemHeight}px`;
+    card.style.left = '0';
+    card.style.right = '0';
+    fragment.appendChild(card);
+  }
+
+  tweetsContainer.innerHTML = '';
+  tweetsContainer.style.height = `${filteredTweets.length * VIRTUAL_SCROLL.itemHeight}px`;
+  tweetsContainer.appendChild(fragment);
+}
+
+function throttle(fn, delay) {
+  let lastCall = 0;
+  return function(...args) {
+    const now = Date.now();
+    if (now - lastCall >= delay) {
+      lastCall = now;
+      fn.apply(this, args);
+    }
+  };
 }
 
 function createTweetCard(tweet) {
@@ -386,12 +493,48 @@ async function toggleStatus(tweetId, currentStatus) {
       if (index !== -1) {
         allTweets[index].status = newStatus;
       }
-      filterAndRender();
+
+      // Try incremental update first
+      if (!incrementalUpdateTweet(tweetId)) {
+        filterAndRender();
+      }
       updateStats();
     }
   } catch (error) {
     console.error('Failed to toggle status:', error);
   }
+}
+
+// Incremental DOM update for single tweet changes
+function incrementalUpdateTweet(tweetId) {
+  const card = document.querySelector(`[data-tweet-id="${tweetId}"]`);
+  if (!card) return false;
+
+  const tweet = allTweets.find(t => t.tweetId === tweetId);
+  if (!tweet) return false;
+
+  // Update status badge
+  const statusBadge = card.querySelector('.status-badge');
+  if (statusBadge) {
+    statusBadge.className = `status-badge ${tweet.status}`;
+    statusBadge.textContent = tweet.status === 'archived' ? 'Archived' : 'Unread';
+  }
+
+  // Update card class
+  card.className = `tweet-card ${tweet.status === 'archived' ? 'archived' : ''}`;
+
+  // Update toggle button
+  const toggleBtn = card.querySelector('.toggle-btn');
+  if (toggleBtn) {
+    toggleBtn.title = tweet.status === 'archived' ? 'Mark Unread' : 'Archive';
+    const btnText = toggleBtn.childNodes[toggleBtn.childNodes.length - 1];
+    if (btnText) btnText.textContent = tweet.status === 'archived' ? ' Unread' : ' Archive';
+  }
+
+  // Update element cache
+  elementCache.delete(tweetId);
+
+  return true;
 }
 
 // Delete Modal Functions
