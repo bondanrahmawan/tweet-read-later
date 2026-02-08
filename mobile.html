@@ -6,110 +6,8 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Tweet Library - Mobile View</title>
   <link rel="stylesheet" href="style.css">
-  <style>
-    /* Mobile-specific styles */
-    .library-container {
-      padding: 12px;
-      max-width: 100%;
-    }
-
-    .library-header {
-      flex-direction: column;
-      gap: 8px;
-      padding: 12px;
-    }
-
-    .header-left h1 {
-      font-size: 18px;
-    }
-
-    .last-updated {
-      font-size: 12px;
-      color: var(--text-secondary);
-      text-align: center;
-      padding: 8px;
-    }
-
-    .filter-controls {
-      flex-direction: column;
-    }
-
-    .filter-select {
-      width: 100%;
-    }
-
-    .tweet-card {
-      padding: 12px;
-    }
-
-    .tweet-actions {
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .tweet-text {
-      font-size: 14px;
-    }
-
-    .privacy-notice {
-      background: #fff3cd;
-      border: 1px solid #ffc107;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 16px;
-      font-size: 13px;
-      color: #856404;
-    }
-
-    .privacy-notice strong {
-      display: block;
-      margin-bottom: 4px;
-    }
-
-    .error-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 20px;
-      background: var(--bg-primary);
-      border-radius: 16px;
-      text-align: center;
-    }
-
-    .error-state svg {
-      color: var(--danger-color);
-      opacity: 0.5;
-      margin-bottom: 16px;
-    }
-
-    .error-state p {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 8px;
-    }
-
-    .error-state span {
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-
-    @media (max-width: 480px) {
-      .library-stats {
-        flex-direction: column;
-        gap: 4px;
-        align-items: flex-start;
-      }
-
-      .action-btn {
-        font-size: 12px;
-        padding: 4px 8px;
-      }
-    }
-  </style>
 </head>
-<body class="library-body">
+<body class="library-body mobile-view">
   <div class="library-container">
     <header class="library-header">
       <div class="header-left">
@@ -178,6 +76,7 @@
     </div>
   </div>
 
+  <script src="shared.js"></script>
   <script src="mobile.js"></script>
 </body>
 </html>

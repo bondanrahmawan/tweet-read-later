@@ -1,9 +1,6 @@
 // Mobile Library Page Script - Read-Only View
+// Uses shared TweetLibrary module for rendering and filtering
 // This script is designed for static hosting (e.g., GitHub Pages)
-// It fetches tweet data from a local tweets.json file
-
-let allTweets = [];
-let filteredTweets = [];
 
 // DOM Elements
 const tweetsContainer = document.getElementById('tweets-container');
@@ -19,12 +16,30 @@ const totalStats = document.getElementById('total-stats');
 const lastUpdated = document.getElementById('last-updated');
 const privacyNotice = document.getElementById('privacy-notice');
 
-// Initialize
+// ============================================================
+// Initialization
+// ============================================================
+
 document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize shared library in mobile mode
+  TweetLibrary.init({
+    mode: 'mobile',
+    container: tweetsContainer,
+    emptyState: emptyState,
+    errorState: errorState,
+    tagFilter: tagFilter,
+    showingCount: showingCount,
+    totalStats: totalStats
+  });
+
   await loadTweets();
   setupEventListeners();
   showPrivacyNotice();
 });
+
+// ============================================================
+// Data Loading
+// ============================================================
 
 async function loadTweets() {
   try {
@@ -37,32 +52,38 @@ async function loadTweets() {
     const data = await response.json();
 
     // Handle both raw array and wrapped format
+    let tweets;
     if (Array.isArray(data)) {
-      allTweets = data;
+      tweets = data;
     } else if (data.tweets && Array.isArray(data.tweets)) {
-      allTweets = data.tweets;
+      tweets = data.tweets;
     } else {
       throw new Error('Invalid data format');
     }
 
     // Validate tweet objects
-    allTweets = allTweets.filter(t => t && t.tweetId);
+    tweets = tweets.filter(t => t && t.tweetId);
 
-    if (allTweets.length === 0) {
+    if (tweets.length === 0) {
       showEmptyState();
       return;
     }
 
+    TweetLibrary.setTweets(tweets);
     updateLastUpdated();
-    updateTagFilter();
+    TweetLibrary.updateTagFilter();
     filterAndRender();
-    updateStats();
+    TweetLibrary.updateStats();
 
   } catch (error) {
     console.error('Failed to load tweets:', error);
     showErrorState(error.message);
   }
 }
+
+// ============================================================
+// UI State Functions
+// ============================================================
 
 function showEmptyState() {
   tweetsContainer.style.display = 'none';
@@ -78,7 +99,8 @@ function showErrorState(message) {
 }
 
 function showPrivacyNotice() {
-  // Show privacy notice briefly
+  if (!privacyNotice) return;
+
   privacyNotice.style.display = 'block';
 
   // Hide after 10 seconds
@@ -92,26 +114,28 @@ function showPrivacyNotice() {
 }
 
 function updateLastUpdated() {
-  // Try to find the most recent savedAt date
-  if (allTweets.length > 0) {
-    const dates = allTweets
+  if (!lastUpdated) return;
+
+  const tweets = TweetLibrary.getTweets();
+  if (tweets.length > 0) {
+    const dates = tweets
       .map(t => new Date(t.savedAt))
       .filter(d => !isNaN(d));
 
     if (dates.length > 0) {
       const mostRecent = new Date(Math.max(...dates));
-      lastUpdated.textContent = `Last updated: ${mostRecent.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      })}`;
+      lastUpdated.textContent = `Last updated: ${TweetLibrary.formatDate(mostRecent.toISOString())}`;
     }
   }
 }
 
+// ============================================================
+// Event Listeners
+// ============================================================
+
 function setupEventListeners() {
-  // Search
-  searchInput.addEventListener('input', debounce(filterAndRender, 200));
+  // Search with debounce
+  searchInput.addEventListener('input', TweetLibrary.debounce(filterAndRender, 200));
 
   // Filters
   statusFilter.addEventListener('change', filterAndRender);
@@ -119,156 +143,17 @@ function setupEventListeners() {
   sortFilter.addEventListener('change', filterAndRender);
 }
 
-function debounce(fn, delay) {
-  let timeout;
-  return function(...args) {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => fn.apply(this, args), delay);
-  };
-}
+// ============================================================
+// Filtering & Rendering
+// ============================================================
 
 function filterAndRender() {
-  const searchTerm = searchInput.value.toLowerCase().trim();
-  const status = statusFilter.value;
-  const tag = tagFilter.value;
-  const sort = sortFilter.value;
-
-  // Filter
-  filteredTweets = allTweets.filter(tweet => {
-    if (status !== 'all' && tweet.status !== status) return false;
-    if (tag !== 'all' && (!tweet.tags || !tweet.tags.includes(tag))) return false;
-
-    if (searchTerm) {
-      const searchableText = `${tweet.text || ''} ${tweet.author || ''} ${tweet.note || ''} ${(tweet.tags || []).join(' ')}`.toLowerCase();
-      if (!searchableText.includes(searchTerm)) return false;
-    }
-
-    return true;
+  TweetLibrary.filterTweets({
+    searchTerm: searchInput.value,
+    status: statusFilter.value,
+    tag: tagFilter.value,
+    sort: sortFilter.value
   });
 
-  // Sort
-  filteredTweets.sort((a, b) => {
-    const dateA = new Date(a.savedAt);
-    const dateB = new Date(b.savedAt);
-    return sort === 'newest' ? dateB - dateA : dateA - dateB;
-  });
-
-  renderTweets();
-  updateShowingCount();
-}
-
-function renderTweets() {
-  if (allTweets.length === 0) {
-    tweetsContainer.style.display = 'none';
-    emptyState.style.display = 'flex';
-    return;
-  }
-
-  emptyState.style.display = 'none';
-  errorState.style.display = 'none';
-  tweetsContainer.style.display = 'block';
-
-  if (filteredTweets.length === 0) {
-    tweetsContainer.innerHTML = '<div class="no-results">No tweets match your filters</div>';
-    return;
-  }
-
-  const fragment = document.createDocumentFragment();
-
-  filteredTweets.forEach(tweet => {
-    const card = createTweetCard(tweet);
-    fragment.appendChild(card);
-  });
-
-  tweetsContainer.innerHTML = '';
-  tweetsContainer.appendChild(fragment);
-}
-
-function createTweetCard(tweet) {
-  const card = document.createElement('div');
-  card.className = `tweet-card ${tweet.status === 'archived' ? 'archived' : ''}`;
-
-  const savedDate = new Date(tweet.savedAt).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-
-  const tagsHtml = (tweet.tags && tweet.tags.length > 0)
-    ? `<div class="tweet-tags">${tweet.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>`
-    : '';
-
-  const noteHtml = tweet.note
-    ? `<div class="tweet-note"><strong>Note:</strong> ${escapeHtml(tweet.note)}</div>`
-    : '';
-
-  const statusBadge = tweet.status === 'archived'
-    ? '<span class="status-badge archived">Archived</span>'
-    : '<span class="status-badge unread">Unread</span>';
-
-  card.innerHTML = `
-    <div class="tweet-header">
-      <div class="tweet-author">
-        <a href="https://x.com/${escapeHtml(tweet.author || 'unknown')}" target="_blank" rel="noopener noreferrer">
-          @${escapeHtml(tweet.author || 'unknown')}
-        </a>
-        ${statusBadge}
-      </div>
-      <div class="tweet-date">${savedDate}</div>
-    </div>
-    <div class="tweet-text">${escapeHtml(tweet.text) || '<em>No text content</em>'}</div>
-    ${tagsHtml}
-    ${noteHtml}
-    <div class="tweet-actions">
-      <a href="${escapeHtml(tweet.url || `https://x.com/i/status/${tweet.tweetId}`)}"
-         target="_blank"
-         rel="noopener noreferrer"
-         class="action-btn open-btn">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-        </svg>
-        Open Tweet
-      </a>
-    </div>
-  `;
-
-  return card;
-}
-
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-function updateTagFilter() {
-  const tags = new Set();
-  allTweets.forEach(tweet => {
-    if (tweet.tags && Array.isArray(tweet.tags)) {
-      tweet.tags.forEach(tag => tags.add(tag));
-    }
-  });
-
-  tagFilter.innerHTML = '<option value="all">All Tags</option>';
-
-  Array.from(tags).sort().forEach(tag => {
-    const option = document.createElement('option');
-    option.value = tag;
-    option.textContent = tag;
-    tagFilter.appendChild(option);
-  });
-}
-
-function updateShowingCount() {
-  const text = filteredTweets.length === 1
-    ? 'Showing 1 tweet'
-    : `Showing ${filteredTweets.length} tweets`;
-  showingCount.textContent = text;
-}
-
-function updateStats() {
-  const unread = allTweets.filter(t => t.status === 'unread').length;
-  const archived = allTweets.filter(t => t.status === 'archived').length;
-  totalStats.textContent = `(${unread} unread, ${archived} archived)`;
+  TweetLibrary.render();
 }

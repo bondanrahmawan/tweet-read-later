@@ -628,7 +628,104 @@ body {
   margin-top: 4px;
 }
 
-/* Responsive */
+/* ============================================================
+   Mobile View Styles
+   ============================================================ */
+
+.mobile-view .library-container {
+  padding: 12px;
+  max-width: 100%;
+}
+
+.mobile-view .library-header {
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.mobile-view .library-header h1 {
+  font-size: 18px;
+}
+
+.mobile-view .filter-controls {
+  flex-direction: column;
+}
+
+.mobile-view .filter-select {
+  width: 100%;
+}
+
+.mobile-view .tweet-card {
+  padding: 12px;
+}
+
+.mobile-view .tweet-text {
+  font-size: 14px;
+}
+
+.mobile-view .tweet-actions {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Last Updated */
+.last-updated {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 8px;
+}
+
+/* Privacy Notice */
+.privacy-notice {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #856404;
+}
+
+.privacy-notice strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* Error State */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: var(--bg-primary);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.error-state svg {
+  color: var(--danger-color);
+  opacity: 0.5;
+  margin-bottom: 16px;
+}
+
+.error-state p {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.error-state span {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   Responsive Breakpoints
+   ============================================================ */
+
 @media (max-width: 600px) {
   .library-container {
     padding: 12px;
@@ -654,5 +751,18 @@ body {
 
   .tweet-actions {
     justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-view .library-stats {
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+
+  .mobile-view .action-btn {
+    font-size: 12px;
+    padding: 4px 8px;
   }
 }
